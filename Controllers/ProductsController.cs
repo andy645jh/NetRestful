@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -33,7 +36,7 @@ namespace restfull_net.Controllers
         {
             var product = await _context.Products.FindAsync(id);
 
-            if(product==null)
+            if (product == null)
             {
                 return NotFound();
             }
@@ -44,17 +47,19 @@ namespace restfull_net.Controllers
         [HttpPost]
         public async Task<IActionResult> Add(Product product)
         {
-            try{
+            try
+            {
                 var productTemp = _context.Products.Add(product);
                 await _context.SaveChangesAsync();
-            }catch(DbUpdateConcurrencyException)
+            }
+            catch (DbUpdateConcurrencyException)
             {
                 return BadRequest();
             }
 
             return StatusCode(200);
         }
-            
+
         [HttpDelete("{id}")]
         public async Task<ActionResult<Product>> Delete(int id)
         {
@@ -70,7 +75,7 @@ namespace restfull_net.Controllers
 
             return product;
         }
-        
+
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] Product product)
         {
@@ -97,6 +102,40 @@ namespace restfull_net.Controllers
             }
             return Content("Product updated successfull");
         }
+
+        [HttpPost("file/")]
+        public async Task<IActionResult> Upload(IFormFile formFile)
+        {
+            var result = new StringBuilder();
+            var filePath = Path.GetTempPath() + "prueba.txt";
+
+
+            if (formFile.Length > 0)
+            {
+
+                using (var reader = new StreamReader(formFile.OpenReadStream()))
+                {
+                    while (reader.Peek() >= 0)
+                        result.AppendLine(await reader.ReadLineAsync());
+                }
+
+                using (var stream = System.IO.File.Create(filePath))
+                {
+                    await formFile.CopyToAsync(stream);
+                }
+            }
+            return Content(filePath + " -- " + result.ToString());
+        }
+
+        [HttpGet("download/")]
+        public FileResult Download()
+        {
+            var filePath = Path.GetTempPath() + "prueba.txt";
+            var file = File(new FileStream(filePath, FileMode.Open), "application/octet-stream");
+            file.FileDownloadName = "test.txt";
+            return file;
+        }
+
         #endregion
 
         // GET: Products
