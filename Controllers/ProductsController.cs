@@ -23,44 +23,82 @@ namespace restfull_net.Controllers
 
         #region API
         [HttpGet]
-        public List<Product> GetAllProducts(){
-
-            return _context.Products.ToList();
+        public async Task<ActionResult<IEnumerable<Product>>> GetAllProducts()
+        {
+            return await _context.Products.ToListAsync();
         }
 
         [HttpGet("{id}")]
-        public Product GetId(int id)
+        public async Task<ActionResult<Product>> GetId(int id)
         {
-            var product = _context.Products.FirstOrDefault(m => m.IdProduct == id);
+            var product = await _context.Products.FindAsync(id);
+
+            if(product==null)
+            {
+                return NotFound();
+            }
+
             return product;
         }
 
         [HttpPost]
-        public void Add([FromBody] Product product)
+        public async Task<IActionResult> Add(Product product)
         {
-            var productTemp = _context.Products.Add(product);
-            _context.SaveChanges();  
-        }
+            try{
+                var productTemp = _context.Products.Add(product);
+                await _context.SaveChangesAsync();
+            }catch(DbUpdateConcurrencyException)
+            {
+                return BadRequest();
+            }
 
-        // POST: Products/Delete/5
-        //[HttpPost, ActionName("Delete")]
+            return StatusCode(200);
+        }
+            
         [HttpDelete("{id}")]
-        public void Delete(int id)
+        public async Task<ActionResult<Product>> Delete(int id)
         {
-            var product = _context.Products.Find(id);
-            _context.Products.Remove(product);
-            _context.SaveChanges();
-        }
+            var product = await _context.Products.FindAsync(id);
 
-        // POST: Products/Delete/5
-        [HttpPut]        
-        public void Update([FromBody] Product product)
-        {            
-            _context.Update(product);
-            _context.SaveChanges();
+            if (product == null)
+            {
+                return NotFound();
+            }
+
+            _context.Products.Remove(product);
+            await _context.SaveChangesAsync();
+
+            return product;
+        }
+        
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromBody] Product product)
+        {
+            if (id != product.IdProduct)
+            {
+                return BadRequest();
+            }
+
+            try
+            {
+                _context.Update(product);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!ProductExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+            return Content("Product updated successfull");
         }
         #endregion
-        
+
         // GET: Products
         public async Task<IActionResult> Index()
         {
@@ -175,7 +213,7 @@ namespace restfull_net.Controllers
             return View(product);
         }
 
-        
+
 
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
